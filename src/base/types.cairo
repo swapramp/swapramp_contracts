@@ -12,5 +12,4 @@ pub struct OffRampDetails {
     pub owner: ByteArray,
     pub amount: u256,
     pub token_type: ByteArray,
-    pub network: ByteArray,
 }
