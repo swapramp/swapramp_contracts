@@ -40,10 +40,6 @@ pub mod SwapOffRamp {
     #[derive(Drop, starknet::Event)]
     enum Event {
         ReceivedFund: ReceivedFund,
-        // #[flat]
-        // OwnableEvent: OwnableComponent::Event,
-        // #[flat]
-        // UpgradeableEvent: UpgradeableComponent::Event,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -51,7 +47,6 @@ pub mod SwapOffRamp {
         #[key]
         caller: ContractAddress,
         token: ContractAddress,
-        token_type: ByteArray,
         amount: u256,
         unique_ref: ByteArray,
     }
@@ -72,19 +67,50 @@ pub mod SwapOffRamp {
 
     #[abi(embed_v0)]
     impl ImplSwapOffRamp of ISwapOffRamp<ContractState> {
-        fn off_ramp(ref self: ContractState, amount: u256, unique_ref: ByteArray, toke_type: u8,) {
+        fn off_ramp_usdt(ref self: ContractState, amount: u256, unique_ref: ByteArray) {
             let caller = get_caller_address();
             // check if user has given the approval to transfer the amount
             assert(
-                self.token_dispatcher().allowance(caller, get_contract_address()) >= amount,
+                self.token_dispatcher_usdt().allowance(caller, get_contract_address()) >= amount,
                 INSUFFICIENT_ALLOWANCE
             );
          
             // transfer the amount
-            self.token_dispatcher().transfer_from(caller, get_contract_address(), amount);
+            self.token_dispatcher_usdt().transfer_from(caller, get_contract_address(), amount);
             // give approval for contract owner to spend the funds
-            self.token_dispatcher().approve(self.owner.read(), amount);
+            self.token_dispatcher_usdt().approve(self.owner.read(), amount);
             // EMIT EVENTS
+             self
+                .emit(
+                    Event::ReceivedFund(
+                        ReceivedFund {
+                            caller, token: self.strk_usdt_token_address.read(), amount, unique_ref
+                        }
+                    )
+                );
+
+        }
+         fn off_ramp_usdc(ref self: ContractState, amount: u256, unique_ref: ByteArray) {
+            let caller = get_caller_address();
+            // check if user has given the approval to transfer the amount
+            assert(
+                self.token_dispatcher_usdc().allowance(caller, get_contract_address()) >= amount,
+                INSUFFICIENT_ALLOWANCE
+            );
+         
+            // transfer the amount
+            self.token_dispatcher_usdc().transfer_from(caller, get_contract_address(), amount);
+            // give approval for contract owner to spend the funds
+            self.token_dispatcher_usdc().approve(self.owner.read(), amount);
+            // EMIT EVENTS
+             self
+                .emit(
+                    Event::ReceivedFund(
+                        ReceivedFund {
+                            caller, token: self.strk_usdc_token_address.read(), amount, unique_ref
+                        }
+                    )
+                );
 
         }
     }
@@ -94,8 +120,11 @@ pub mod SwapOffRamp {
     // *************************************************************************
     #[generate_trait]
     impl InternalImpl of InternalTrait {
-        fn token_dispatcher(self: @ContractState) -> IERC20Dispatcher {
+        fn token_dispatcher_usdt(self: @ContractState) -> IERC20Dispatcher {
             IERC20Dispatcher { contract_address: self.strk_usdt_token_address.read() }
+        }
+         fn token_dispatcher_usdc(self: @ContractState) -> IERC20Dispatcher {
+            IERC20Dispatcher { contract_address: self.strk_usdc_token_address.read() }
         }
     }
 }
